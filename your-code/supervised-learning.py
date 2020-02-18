@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from PIL import Image
+from IPython.display import display
 
 # %% [markdown]
 # In this lab, we will explore a dataset that describes websites with different features and labels them either benign or malicious . We will use supervised learning algorithms to figure out what feature patterns malicious websites are likely to have and use our model to predict malicious websites.
@@ -27,8 +29,9 @@ import matplotlib.pyplot as plt
 # Let's start by exploring the dataset. First load the data file:
 
 # %%
-#%%
 websites = pd.read_csv('../website.csv')
+pil_im = Image.open('../clz.png')
+spidey_instinct = Image.open('../spidey.jpg')
 
 # %% [markdown]
 # #### Explore the data from an bird's-eye view.
@@ -93,17 +96,15 @@ plt.show()
 # 
 
 # %%
-websites.dtypes
+websites.info()
 
 
 # %%
-#%%
 websites.isnull().sum()
 
 
 # %%
-#%%
-websites
+websites.corrwith(websites.Type).sort_values(ascending=False)
 
 
 # %%
@@ -128,18 +129,18 @@ websites
 # %%
 # Your code here
 #%%
-websites.corr()
-
-
-# %%
-#%%
-sns.heatmap(websites.corr())
+#Obtenemos la lista de correlaciones por cada variable, ordenada y sin duplicados
+web_corr = websites.copy()
+web_corr = websites.corr().unstack().sort_values(kind='quicksort', ascending=False).drop_duplicates().head(60)
+web_corr
 
 
 # %%
 # Your comment here
-#Hay que botar las columnas de URL_LENGTH, NUMBER_SPECIAL_CHARACTERS, CONTENT_LENGTH, de momento parece que no tienen mucha relación
-# con lo que se necesita y se continuara de ese modo.
+#%%
+#En la lista que imprimimos arriba se muestra las variables con colinearidad > 90 %, el experimento siguiente consiste en jugar con las variables a remover, pera intentar mantener la mayoría de columnas posibles.
+
+web_corr.head(7)
 
 # %% [markdown]
 # # Challenge 2 - Remove Column Collinearity.
@@ -151,31 +152,36 @@ sns.heatmap(websites.corr())
 # In the cells below, remove as few columns as you can to eliminate the high collinearity in the dataset. Make sure to comment on your way so that the instructional team can learn about your thinking process which allows them to give feedback. At the end, print the heatmap again.
 
 # %%
-# Los reviales las debiles: URL_LENGTH, NUMBER_SPECIAL_CHARACTERS, CONTENT_LENGTH.
+# Los rivales mas debiles: REMOTE_APP_BYTES, APP_BYTES, SOURCE_APP_PACKETS, TCP_CONVERSATION_EXCHANGE,APP_PACKETS, REMOTE_APP_PACKETS
 #%%
-sns.heatmap(websites[['URL', 'CHARSET', 'SERVER',
-       'WHOIS_COUNTRY', 'WHOIS_STATEPRO', 'WHOIS_REGDATE',
+
+#Mi instinto de ingeniero en Sistemas piensa que REMOTE_APP_BYTES Y APP_BYTES, pueden ser la misma basura, TCP_CONVERSATION_EXCANGE esta muy ligado a SOURCE/REMOTE APP PACKETS, porque TCP = Transfer Control Protocol y se encarga de controlar paquetes, APP_PACKETS y REMOTE_APP_PACKETS igual son la misma basura.
+
+#Dicho lo anterior a las pruebas me remito.
+
+display(spidey_instinct)
+#print(websites.corr().unstack().sort_values(kind='quicksort', ascending=False).drop_duplicates().head(7))
+
+#ROUND2: SOURCE_APP_PACKETS, REMOTE_APP_PACKETS, NUMBER_SPECIAL_CHARACTERS
+
+sns.heatmap(websites[['URL', 'URL_LENGTH', 'CHARSET', 'SERVER',
+       'CONTENT_LENGTH', 'WHOIS_COUNTRY', 'WHOIS_STATEPRO', 'WHOIS_REGDATE',
        'WHOIS_UPDATED_DATE', 'TCP_CONVERSATION_EXCHANGE',
-       'DIST_REMOTE_TCP_PORT', 'REMOTE_IPS', 'APP_BYTES', 'SOURCE_APP_PACKETS',
-       'REMOTE_APP_PACKETS', 'SOURCE_APP_BYTES', 'REMOTE_APP_BYTES',
-       'APP_PACKETS', 'DNS_QUERY_TIMES', 'Type']].corr())
-websites
+       'DIST_REMOTE_TCP_PORT', 'REMOTE_IPS', 'APP_BYTES', 'SOURCE_APP_PACKETS', 'SOURCE_APP_BYTES', 'REMOTE_APP_BYTES',
+       'APP_PACKETS', 'DNS_QUERY_TIMES', 'Type']].corr(), annot=True, linewidths=.5,cbar=False);
 
 
 # %%
 # Your comment here
 #%%
-try:
-    websites.drop(columns=['URL_LENGTH','NUMBER_SPECIAL_CHARACTERS','CONTENT_LENGTH'], axis=1, inplace=True)
-except:
-    pass
-print('holi')
+print(websites.keys())
 
 
 # %%
 # Print heatmap again
 #%%
-sns.heatmap(websites.corr(), annot=True, linewidths=.5, cbar=False);
+#websites.drop(columns=['SOURCE_APP_PACKETS', 'REMOTE_APP_PACKETS', 'NUMBER_SPECIAL_CHARACTERS'], axis=1, inplace=True)
+sns.heatmap(websites.corr(), annot=True, linewidths=.5,cbar=False);
 
 # %% [markdown]
 # # Challenge 3 - Handle Missing Values
@@ -196,10 +202,12 @@ websites.isnull().sum()
 # Your code here
 #%%
 websites.dropna(axis=0, inplace=True)
+websites.reset_index(drop=True)
 
 
 # %%
 # Your comment here
+# No quedaban muchos valores nulos, por lo que se quita el registro completo de el dataframe
 
 # %% [markdown]
 # #### Again, examine the number of missing values in each column. 
@@ -208,6 +216,7 @@ websites.dropna(axis=0, inplace=True)
 
 # %%
 # Examine missing values in each column
+#%%
 websites.isnull().sum()
 
 # %% [markdown]
@@ -237,16 +246,18 @@ websites.isnull().sum()
 # %%
 # Your code here
 #websites.WHOIS_COUNTRY.unique()     #[13] "[u'GB'; u'UK']"
+#%%
 websites.replace(to_replace=['UK','United Kingdom',"[u'GB'; u'UK']"], value='GB', inplace=True)
 
 
 # %%
 #%%
 websites.replace(to_replace=['Cyprus'], value='CY', inplace=True)
+websites.reset_index(drop=True, level=0, inplace=True)
 
 
 # %%
-websites.WHOIS_COUNTRY.unique()
+
 
 # %% [markdown]
 # Since we have fixed the country values, can we convert this column to ordinal now?
@@ -259,6 +270,7 @@ websites.WHOIS_COUNTRY.unique()
 
 # %%
 # Your code here
+#%%
 websites.WHOIS_COUNTRY.value_counts().plot.bar();
 
 # %% [markdown]
@@ -266,16 +278,23 @@ websites.WHOIS_COUNTRY.value_counts().plot.bar();
 
 # %%
 # Your code here
-websites.WHOIS_COUNTRY.str.upper().value_counts()
+#%%
+websites.WHOIS_COUNTRY = websites.WHOIS_COUNTRY.str.upper()
 top10 = ['US','NONE','CA','ES','GB','AU','PA','JP','CN','IN']
 
-for y in range(len(websites.WHOIS_COUNTRY)):
-    if websites.WHOIS_COUNTRY[y] not in top10:
-        websites[y] = 'OTHER'
+for x in range(len(websites.WHOIS_COUNTRY)):
+    if websites.WHOIS_COUNTRY[x] in top10:
+        continue#print('Es top10')
     else:
-        continue
+        websites.WHOIS_COUNTRY[x] = 'Other' 
 
-websites.WHOIS_COUNTRY.unique()
+
+# %%
+websites.WHOIS_COUNTRY.value_counts()
+
+
+# %%
+websites.WHOIS_COUNTRY.value_counts().plot.bar();
 
 # %% [markdown]
 # Now since `WHOIS_COUNTRY` has been re-labelled, we don't need `WHOIS_STATEPRO` any more because the values of the states or provinces may not be relevant any more. We'll drop this column.
@@ -285,7 +304,11 @@ websites.WHOIS_COUNTRY.unique()
 # #### In the next cell, drop `['WHOIS_STATEPRO', 'WHOIS_REGDATE', 'WHOIS_UPDATED_DATE']`.
 
 # %%
-# Your code here
+#%%
+try:
+    websites.drop(columns=['WHOIS_STATEPRO','WHOIS_REGDATE','WHOIS_UPDATED_DATE'], axis=1, inplace=True)
+except:
+    print(websites.keys())
 
 # %% [markdown]
 # # Challenge 5 - Handle Remaining Categorical Data & Convert to Ordinal
@@ -294,18 +317,27 @@ websites.WHOIS_COUNTRY.unique()
 
 # %%
 # Your code here
+#%%
+print(websites.dtypes)
+display(pil_im)
 
 # %% [markdown]
 # #### `URL` is easy. We'll simply drop it because it has too many unique values that there's no way for us to consolidate.
 
 # %%
 # Your code here
+#%%
+try:
+    websites.drop(columns=['URL'], axis=1, inplace=True)
+except:
+    print(websites.keys())
 
 # %% [markdown]
 # #### Print the unique value counts of `CHARSET`. You see there are only a few unique values. So we can keep it as it is.
 
 # %%
-# Your code here
+#%%
+websites.CHARSET.unique()
 
 # %% [markdown]
 # `SERVER` is a little more complicated. Print its unique values and think about how you can consolidate those values.
@@ -314,12 +346,15 @@ websites.WHOIS_COUNTRY.unique()
 
 # %%
 # Your code here
+#%%
+websites.SERVER.unique()
 
 # %% [markdown]
 # ![Think Hard](../think-hard.jpg)
 
 # %%
 # Your comment here
+#Ya había pensado en algo como clasificarlo por el S.O del servidor o su programa gestor.
 
 # %% [markdown]
 # Although there are so many unique values in the `SERVER` column, there are actually only 3 main server types: `Microsoft`, `Apache`, and `nginx`. Just check if each `SERVER` value contains any of those server types and re-label them. For `SERVER` values that don't contain any of those substrings, label with `Other`.
@@ -327,23 +362,46 @@ websites.WHOIS_COUNTRY.unique()
 # At the end, your `SERVER` column should only contain 4 unique values: `Microsoft`, `Apache`, `nginx`, and `Other`.
 
 # %%
-# Your code here
+#Your code here:
+#%%
+for x in range(len(websites.SERVER)):
+    if 'pache' in websites.SERVER[x]:
+        websites.SERVER[x] = 'Apache'
+    elif 'ATS' in websites.SERVER[x]:
+        websites.SERVER[x] = 'Apache'
+    elif 'crosoft' in websites.SERVER[x]:
+        websites.SERVER[x] = 'Microsoft'
+    elif 'ginx' in websites.SERVER[x]:
+        websites.SERVER[x] = 'Nginx'
+    elif 'openresty' in websites.SERVER[x]:
+        websites.SERVER[x] = 'Nginx'
+    else:
+        websites.SERVER[x] = 'Other'
+
+#websites.reset_index(drop=True, level=0, inplace=True)
+websites.SERVER.unique()
 
 
 # %%
 # Count `SERVER` value counts here
+#%%
+websites.SERVER.value_counts()
 
 # %% [markdown]
 # OK, all our categorical data are fixed now. **Let's convert them to ordinal data using Pandas' `get_dummies` function ([documentation](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.get_dummies.html)).** Make sure you drop the categorical columns by passing `drop_first=True` to `get_dummies` as we don't need them any more. **Also, assign the data with dummy values to a new variable `website_dummy`.**
 
 # %%
 # Your code here
+#%%
+website_dummy = pd.get_dummies(websites, drop_first=True)
 
 # %% [markdown]
 # Now, inspect `website_dummy` to make sure the data and types are intended - there shouldn't be any categorical columns at this point.
 
 # %%
 # Your code here
+#%%
+website_dummy.dtypes
 
 # %% [markdown]
 # # Challenge 6 - Modeling, Prediction, and Evaluation
@@ -354,6 +412,9 @@ websites.WHOIS_COUNTRY.unique()
 from sklearn.model_selection import train_test_split
 
 # Your code here:
+
+
+X_train, X_test, y_train, y_test = train_test_split()
 
 # %% [markdown]
 # #### In this lab, we will try two different models and compare our results.
